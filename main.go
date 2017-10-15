@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-
 	"time"
 
 	"github.com/simulatedsimian/fffprintmon/gcode"
@@ -41,6 +40,11 @@ func exitOnError(err error, message string) {
 }
 
 func main() {
+
+	var a, b, c int
+	fmt.Sscanf("Endstop: X-max: 1 Y-max: 2 Z-max: 3", "Endstop: X-max: %d Y-max: %d Z-max: %d", &a, &b, &c)
+	fmt.Println(a, b, c)
+
 	flag.Parse()
 
 	if config.PrinterHostName == "" || config.Help {
@@ -61,16 +65,19 @@ func run(g *gcode.GCode) {
 	var resp gcode.CommandResponse
 	var err error
 
-	resp, err = g.SendCommand("M601 S1")
+	resp, err = g.CMDTakeControl()
 	exitOnError(err, "")
-	resp, err = g.SendCommand("G28")
+	resp, err = g.CMDPrinterInfo()
+	exitOnError(err, "")
+	fmt.Println(resp.Params)
+
+	resp, err = g.CMDHomePos()
 	exitOnError(err, "")
 
 	for {
-		time.Sleep(1 * time.Second)
-		resp, err = g.SendCommand("M119")
+		time.Sleep(1 *time.Second)
+		resp, err = g.CMDPrinterStatus()
 		exitOnError(err, "")
-		fmt.Println(resp.Params["MoveMode"])
+		fmt.Println(resp.Params)
 	}
-
 }

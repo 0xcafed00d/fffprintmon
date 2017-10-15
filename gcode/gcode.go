@@ -52,9 +52,8 @@ type GCode struct {
 }
 
 type CommandResponse struct {
-	Command string
-	Params  map[string]string
-	err     error
+	Params map[string]string
+	err    error
 }
 
 func MakeCommandResponse() CommandResponse {
@@ -79,6 +78,22 @@ func (g *GCode) SendCommand(cmd string) (CommandResponse, error) {
 	return resp, resp.err
 }
 
+func (g *GCode) CMDTakeControl() (CommandResponse, error) {
+	return g.SendCommand("M601 S1")
+}
+
+func (g *GCode) CMDHomePos() (CommandResponse, error) {
+	return g.SendCommand("G28")
+}
+
+func (g *GCode) CMDPrinterInfo() (CommandResponse, error) {
+	return g.SendCommand("M115")
+}
+
+func (g *GCode) CMDPrinterStatus() (CommandResponse, error) {
+	return g.SendCommand("M119")
+}
+
 func (g *GCode) responseReader() {
 	resp := MakeCommandResponse()
 
@@ -95,11 +110,15 @@ func (g *GCode) responseReader() {
 			resp = MakeCommandResponse()
 		} else {
 			if strings.HasPrefix(line, "CMD") {
-				resp.Command = line
+				resp.Params["CMD"] = extractCommand(line)
 			} else {
-				i := strings.Index(line, ": ")
-				if i != -1 {
-					resp.Params[line[:i]] = line[i:]
+				e := extracters[resp.Params["CMD"]]
+				if len(e) > 0 {
+					for i := range e {
+						if strings.HasPrefix(line, e[i].prefix) {
+							e[i].extractFunc(line, &resp)
+						}
+					}
 				}
 			}
 		}
