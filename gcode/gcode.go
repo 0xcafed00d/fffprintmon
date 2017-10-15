@@ -39,28 +39,69 @@ print_loop:
 */
 
 import (
+	"bufio"
 	"fmt"
 	"io"
-	"os"
+	"strings"
 )
 
 type GCode struct {
-	rw io.ReadWriter
+	reader   *bufio.Reader
+	writer   io.Writer
+	respChan chan CommandResponse
 }
 
-func Make(rw io.ReadWriter) (*GCode, error) {
+type CommandResponse struct {
+	Command string
+	Params  map[string]string
+	err     error
+}
+
+func MakeCommandResponse() CommandResponse {
+	return CommandResponse{Params: make(map[string]string)}
+}
+
+func New(rw io.ReadWriter) *GCode {
 	g := &GCode{}
-	g.rw = rw
+	g.reader = bufio.NewReader(rw)
+	g.writer = rw
+	g.respChan = make(chan CommandResponse)
 	go g.responseReader()
-
-	return g, nil
+	return g
 }
 
-func (g *GCode) SendCommand(cmd string) error {
-	_, err := fmt.Fprintf(g.rw, "~%s\r\n", cmd)
-	return err
+func (g *GCode) SendCommand(cmd string) (CommandResponse, error) {
+	_, err := fmt.Fprintf(g.writer, "~%s\r\n", cmd)
+	if err != nil {
+		return CommandResponse{}, err
+	}
+	resp := <-g.respChan
+	return resp, resp.err
 }
 
 func (g *GCode) responseReader() {
-	io.Copy(os.Stdout, g.rw)
+	resp := MakeCommandResponse()
+
+	for {
+		line, err := g.reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if err != nil {
+			g.respChan <- CommandResponse{err: err}
+			return
+		}
+
+		if line == "ok" {
+			g.respChan <- resp
+			resp = MakeCommandResponse()
+		} else {
+			if strings.HasPrefix(line, "CMD") {
+				resp.Command = line
+			} else {
+				i := strings.Index(line, ": ")
+				if i != -1 {
+					resp.Params[line[:i]] = line[i:]
+				}
+			}
+		}
+	}
 }
