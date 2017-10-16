@@ -42,6 +42,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"strings"
 )
 
@@ -71,6 +72,7 @@ func New(rw io.ReadWriter) *GCode {
 
 func (g *GCode) SendCommand(cmd string) (CommandResponse, error) {
 	_, err := fmt.Fprintf(g.writer, "~%s\r\n", cmd)
+	log.Printf("~%s", cmd)
 	if err != nil {
 		return CommandResponse{}, err
 	}
@@ -92,6 +94,26 @@ func (g *GCode) CMDPrinterInfo() (CommandResponse, error) {
 
 func (g *GCode) CMDPrinterStatus() (CommandResponse, error) {
 	return g.SendCommand("M119")
+}
+
+func (g *GCode) CMDSetRGBLights(r, gr, b int) (CommandResponse, error) {
+	return g.SendCommand(fmt.Sprintf("M146 r%d g%d b%d", r, gr, b))
+}
+
+func (g *GCode) CMDCoordAbs() (CommandResponse, error) {
+	return g.SendCommand("G90")
+}
+
+func (g *GCode) CMDCoordRel() (CommandResponse, error) {
+	return g.SendCommand("G91")
+}
+
+func (g *GCode) CMDMoveXYZ(x, y, z float64) (CommandResponse, error) {
+	return g.SendCommand(fmt.Sprintf("G1 X%f Y%f Z%f", x, y, z))
+}
+
+func (g *GCode) CMDGetXYZ() (CommandResponse, error) {
+	return g.SendCommand("M114")
 }
 
 func (g *GCode) responseReader() {

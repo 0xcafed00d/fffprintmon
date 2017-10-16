@@ -65,4 +65,16 @@ var extracters = map[string][]extracter{
 			c.Params["Z"] = z
 		}},
 	},
+	//	CMD M114 Received.
+	//	X:86.9984 Y:70.5016 Z:140 A:0 B:0
+	//	ok
+	"M114": []extracter{
+		{"X:", func(s string, c *CommandResponse) {
+			var x, y, z string
+			fmt.Sscanf(s, "X:%s  Y:%s  Z:%s", &x, &y, &z)
+			c.Params["X"] = x
+			c.Params["Y"] = y
+			c.Params["Z"] = z
+		}},
+	},
 }
